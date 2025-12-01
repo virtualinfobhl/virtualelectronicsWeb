@@ -1,0 +1,207 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+public partial class Category : System.Web.UI.Page
+{
+
+    ClsConnection Cnn = new ClsConnection();
+    public enum MessageType { Success, Error, Info, Warning };
+    string filename;
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        if (Session["Admin_id"] == null)
+        {
+            Response.Redirect("login.aspx");
+        }
+
+        list();
+    }
+
+    public void list()
+    {
+        DataTable dt = Cnn.FillTable("select * from [M_CategoryMaster] where active=1", "Detail");
+        ListView1.DataSource = dt;
+        ListView1.DataBind();
+    }
+    protected void Button1_Click(object sender, EventArgs e)
+    {
+        ////update
+        if (Button1.Text == "Update")
+        {
+            Cnn.Open();
+            if (FileUpload1.HasFile)
+            {
+
+                byte[] image = FileUpload1.FileBytes;
+                ImageHandler imageHandler = new ImageHandler();
+
+                filename = LblId.Value + ".jpg";
+                Bitmap bmpmain = imageHandler.CreateThumbnail(image, false, 200, 200);
+                if (bmpmain != null)
+                {
+
+                    bmpmain.Save(Server.MapPath("~/img/MainCategory/" + filename), System.Drawing.Imaging.ImageFormat.Png);
+                }
+
+
+                Cnn.ExecuteNonQuery("update [M_CategoryMaster] set MainCategoryName='" + Txttitle.Text.Replace("'", "''") + "',image='"+filename+"' where MainCategoryid='" + LblId.Value + "' ");
+
+
+            }
+            else
+            {
+
+                Cnn.ExecuteNonQuery("update [M_CategoryMaster] set MainCategoryName='" + Txttitle.Text.Replace("'", "''") + "' where MainCategoryid='" + LblId.Value + "' ");
+            }
+
+
+
+             
+
+           
+            clear();
+            list();
+            ShowMessage("Record updated successfully", MessageType.Success);
+            Button1.Text = "Submit";
+            Cnn.Open();
+        }
+        else
+        {
+
+
+
+            //////////insert
+            Cnn.Open();
+            int ID = Convert.ToInt32(Cnn.ExecuteScalar("Select  IsNull(Max(MainCategoryid)+1,1) From [M_CategoryMaster]"));
+
+            if (FileUpload1.HasFile)
+            {
+
+                byte[] image = FileUpload1.FileBytes;
+                ImageHandler imageHandler = new ImageHandler();
+                filename = ID + ".jpg";
+                Bitmap bmpmain = imageHandler.CreateThumbnail(image, false, 200, 200);
+                if (bmpmain != null)
+                {
+                    bmpmain.Save(Server.MapPath("~/img/MainCategory/" + filename), System.Drawing.Imaging.ImageFormat.Png);
+                }
+
+
+                Cnn.ExecuteNonQuery("INSERT INTO [M_CategoryMaster] (MainCategoryid,MainCategoryName,image) values ('" + ID + "','" + Txttitle.Text.Trim().Replace("'", "''") + "','" + filename + "')");
+
+                
+
+            }
+
+            else {
+
+                ShowMessage("Select Image !!!", MessageType.Info);
+                return;
+            
+            }
+
+            
+           
+          
+
+
+            LblErr.Text = "Success !!!";
+            Cnn.Close();
+
+
+
+            clear();
+            list();
+            ShowMessage("Record submitted successfully", MessageType.Success);
+
+
+        }
+    }
+
+    public void clear()
+    {
+        Txttitle.Text = "";
+        Image1.Visible = false;
+
+    }
+    protected void ShowMessage(string Message, MessageType type)
+    {
+        ScriptManager.RegisterStartupScript(this, this.GetType(), System.Guid.NewGuid().ToString(), "ShowMessage('" + Message + "','" + type + "');", true);
+    }
+    protected void ListView1_ItemCommand(object sender, ListViewCommandEventArgs e)
+    {
+        Cnn.Open();
+        if (e.CommandName == "dea")
+        {
+            if (ListView1.Items.Count > 0)
+            {
+                for (int i = 0; i < ListView1.Items.Count; i++)
+                {
+                    if (((CheckBox)ListView1.Items[i].FindControl("ChkBox")).Checked == true)
+                    {
+                        LblId.Value = ((HiddenField)e.Item.FindControl("HdnID")).Value;
+
+                        Cnn.ExecuteNonQuery("update M_CategoryMaster set Active=0 where Id='" + LblId.Value + "'");
+                    }
+
+                }
+            }
+
+
+        }
+
+        Cnn.Close();
+
+        if (e.CommandName == "del")
+        {
+            LblId.Value = ((HiddenField)e.Item.FindControl("HdnID")).Value;
+
+            
+         
+         
+          
+            Cnn.Open();
+
+
+
+            Cnn.ExecuteNonQuery("delete from [M_CategoryMaster] where id='" + LblId.Value + "'");
+            
+            list();
+            ShowMessage("Record Delete successfully", MessageType.Success);
+
+            Cnn.Close();
+
+
+
+
+
+            //   string id = ((HiddenField)LstDay.Items[j].FindControl("HdnID")).Value;
+            //  Cnn.ExecuteNonQuery("update Poster set  Active=0 where Id='" + LblId.Value + "'");
+        }
+
+        if (e.CommandName == "Edt")
+        {
+            LblId.Value = ((HiddenField)e.Item.FindControl("HdnID")).Value;
+
+            string img = ((Label)e.Item.FindControl("lblImage")).Text;
+            Image1.ImageUrl = "~/img/MainCategory/" + img;
+            Image1.Visible = true;
+
+          
+            Txttitle.Text = ((Label)e.Item.FindControl("lbltitle")).Text;
+            Button1.Text = "Update";
+
+
+            Cnn.Open();
+        }
+    }
+
+
+}
